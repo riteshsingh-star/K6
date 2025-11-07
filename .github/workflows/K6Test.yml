@@ -1,0 +1,31 @@
+name: K6 Load Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  k6-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Run k6 test with Web Dashboard
+        run: |
+          K6_WEB_DASHBOARD=true \
+          K6_WEB_DASHBOARD_EXPORT=report.html \
+          k6 run demoQAMain.js
+
+      - name: Upload k6 report
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-dashboard
+          path: report.html
