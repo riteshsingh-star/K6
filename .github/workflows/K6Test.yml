@@ -1,4 +1,4 @@
-name: K6 Load Test
+name: K6 Browser Load Test
 
 on:
   push:
@@ -6,31 +6,49 @@ on:
   pull_request:
 
 jobs:
-  k6-test:
+  k6-browser-test:
     runs-on: ubuntu-latest
-    container:
-      image: grafana/xk6-browser:latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install k6
+      # Install Google Chrome
+      - name: Install Google Chrome
         run: |
           sudo apt-get update
+          sudo apt-get install -y wget gnupg
+          wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update
+          sudo apt-get install -y google-chrome-stable
+
+      # Install k6 (official stable version)
+      - name: Install k6
+        run: |
           sudo apt-get install -y ca-certificates gnupg
           sudo mkdir -p /etc/apt/keyrings
           curl -fsSL https://dl.k6.io/key.gpg | sudo gpg --dearmor -o /etc/apt/keyrings/k6-archive-keyring.gpg
           echo "deb [signed-by=/etc/apt/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
           sudo apt-get update
           sudo apt-get install -y k6
+          k6 version
 
+      # Install browser dependencies for k6 browser mode
+      - name: Install k6 browser dependencies
+        run: |
+          k6 browser install
+
+      # Run the browser test
       - name: Run k6 test with Web Dashboard
+        env:
+          K6_BROWSER_EXECUTABLE_PATH: /usr/bin/google-chrome-stable
         run: |
           K6_WEB_DASHBOARD=true \
           K6_WEB_DASHBOARD_EXPORT=report.html \
-          k6 run demoQAMain.js
+          k6 run --browser-script demoQAMain.js
 
+      # Upload the dashboard report
       - name: Upload k6 report
         uses: actions/upload-artifact@v4
         with:
